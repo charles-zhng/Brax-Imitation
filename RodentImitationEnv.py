@@ -13,7 +13,7 @@ import os
 
 _XML_PATH = "./models/rodent_optimized.xml"
 
-class Rodent(PipelineEnv):
+class RodentTrackClip(PipelineEnv):
 
   def __init__(
       self,
@@ -26,7 +26,7 @@ class Rodent(PipelineEnv):
       exclude_current_positions_from_observation=True,
       solver="cg",
       iterations: int = 6,
-      ls_iterations: int = 6,
+      ls_iterations: int = 3,
       **kwargs,
   ):
     mj_model = mujoco.MjModel.from_xml_path(_XML_PATH)

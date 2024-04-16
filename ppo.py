@@ -30,8 +30,10 @@ from brax.training import pmap
 from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.acme import specs
-from brax.training.agents.ppo import losses as ppo_losses
-from brax.training.agents.ppo import networks as ppo_networks
+# from brax.training.agents.ppo import losses as ppo_losses
+import losses as ppo_losses
+# from brax.training.agents.ppo import networks as ppo_networks
+import networks as ppo_networks
 from brax.training.types import Params
 from brax.training.types import PRNGKey
 from brax.v1 import envs as envs_v1
@@ -40,7 +42,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-
 
 InferenceParams = Tuple[running_statistics.NestedMeanStd, Params]
 Metrics = types.Metrics
@@ -55,6 +56,7 @@ class TrainingState:
   params: ppo_losses.PPONetworkParams
   normalizer_params: running_statistics.RunningStatisticsState
   env_steps: jnp.ndarray
+
 
 
 def _unpmap(v):
@@ -236,8 +238,9 @@ def train(
 
   optimizer = optax.adam(learning_rate=learning_rate)
 
+    # Add kl_divergence term to custom ppo loss
   loss_fn = functools.partial(
-      ppo_losses.compute_ppo_loss,
+      losses.compute_ppo_loss_vae,
       ppo_network=ppo_network,
       entropy_cost=entropy_cost,
       discounting=discounting,
