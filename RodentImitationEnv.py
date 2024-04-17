@@ -11,19 +11,15 @@ import numpy as np
 
 import os
 
-_XML_PATH = "./models/rodent_optimized.xml"
+_XML_PATH = "rodent.xml"
 
 class RodentTrackClip(PipelineEnv):
 
   def __init__(
       self,
-      forward_reward_weight=10,
-      ctrl_cost_weight=0.1,
-      healthy_reward=1.0,
       terminate_when_unhealthy=True,
       healthy_z_range=(0.01, 0.5),
       reset_noise_scale=1e-2,
-      exclude_current_positions_from_observation=True,
       solver="cg",
       iterations: int = 6,
       ls_iterations: int = 3,
@@ -55,15 +51,9 @@ class RodentTrackClip(PipelineEnv):
 
     super().__init__(sys, **kwargs)
 
-    self._forward_reward_weight = forward_reward_weight
-    self._ctrl_cost_weight = ctrl_cost_weight
-    self._healthy_reward = healthy_reward
     self._terminate_when_unhealthy = terminate_when_unhealthy
     self._healthy_z_range = healthy_z_range
     self._reset_noise_scale = reset_noise_scale
-    self._exclude_current_positions_from_observation = (
-        exclude_current_positions_from_observation
-    )
     
   def reset(self, rng) -> State:
     """Resets the environment to an initial state."""
@@ -117,6 +107,8 @@ class RodentTrackClip(PipelineEnv):
     obs = self._get_obs(data, action)
     reward = forward_reward + healthy_reward - ctrl_cost
     done = 1.0 - is_healthy if self._terminate_when_unhealthy else 0.0
+    
+    # TODO update these metrics (new reward components)
     state.metrics.update(
         forward_reward=forward_reward,
         reward_linvel=forward_reward,
@@ -137,11 +129,12 @@ class RodentTrackClip(PipelineEnv):
       self, data: mjx.Data, action: jp.ndarray
   ) -> jp.ndarray:
     """Observes rodent body position, velocities, and angles."""
-    # external_contact_forces are excluded
+    # I don't think the order matters?
     return jp.concatenate([
         data.qpos, 
         data.qvel, 
-        data.cinert[1:].ravel(),
-        data.cvel[1:].ravel(),
-        data.qfrc_actuator
+        data.qfrc_actuator, # Actuator force <==> joint torque sensor?
+        data.geom_xpos, # 
+        action, 
+        
     ])
