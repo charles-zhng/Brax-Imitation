@@ -6,4 +6,5 @@ setup:
 - brax
 - mujoco-mjx
 - flax
+- optax
   
