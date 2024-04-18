@@ -115,14 +115,14 @@ def make_ppo_networks(
   """Make PPO networks with preprocessor."""
   parametric_action_distribution = distribution.NormalTanhDistribution(
       event_size=action_size)
-  policy_network = networks.make_policy_network(
+  policy_network = make_policy_vae(
       parametric_action_distribution.param_size,
       observation_size,
       preprocess_observations_fn=preprocess_observations_fn,
       encoder_layer_sizes=encoder_layer_sizes,
       decoder_layer_sizes=decoder_layer_sizes,
       )
-  value_network = networks.make_value_network(
+  value_network = make_value_network(
       observation_size,
       preprocess_observations_fn=preprocess_observations_fn,
       hidden_layer_sizes=value_hidden_layer_sizes,
