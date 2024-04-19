@@ -4,6 +4,9 @@ from jax import numpy as jp
 from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf as mjcf_brax
 
+from dm_control import mjcf
+from dm_control.locomotion.walkers import rescale
+
 import mujoco
 from mujoco import mjx
 
@@ -13,6 +16,60 @@ import os
 
 _XML_PATH = "rodent.xml"
 
+def initialize_part_names(physics):
+    # Get the ids of the limbs, accounting for quaternion and pos
+    part_names = physics.named.data.qpos.axes.row.names
+    for _ in range(6):
+        part_names.insert(0, part_names[0])
+    return part_names
+
+# TODO: make this site_index_map into a jax-able object?
+def env_setup(params):
+    root = mjcf.from_path(_XML_PATH)
+    
+    body_sites = []
+    for key, v in params["KEYPOINT_MODEL_PAIRS"].items():
+        parent = root.find("body", v)
+        pos = params["KEYPOINT_INITIAL_OFFSETS"][key]
+        site = parent.add(
+            "site",
+            name=key,
+            type="sphere",
+            size=[0.005],
+            rgba="0 0 0 1",
+            pos=pos,
+            group=3,
+        )
+        body_sites.append(site)
+
+    rescale.rescale_subtree(
+        root,
+        params["SCALE_FACTOR"],
+        params["SCALE_FACTOR"],
+    )
+    physics = mjcf.Physics.from_mjcf_model(root)
+    # Usage of physics: binding = physics.bind(body_sites)
+
+    axis = physics.named.model.site_pos._axes[0]
+    params["site_index_map"] = {key: int(axis.convert_key_item(key)) for key in params["KEYPOINT_MODEL_PAIRS"].keys()}
+    
+    params["part_names"] = initialize_part_names(physics)
+
+    # get mjmodel from physics and set up solver configs
+    mj_model = physics.model.ptr
+    
+    mj_model.opt.solver = {
+      'cg': mujoco.mjtSolver.mjSOL_CG,
+      'newton': mujoco.mjtSolver.mjSOL_NEWTON,
+    }[params["solver"].lower()]
+    mj_model.opt.iterations = params["iterations"]
+    mj_model.opt.ls_iterations = params["ls_iterations"]
+    
+    mj_model.opt.jacobian = 0 # dense
+    
+    return physics, mj_model, params["site_index_map"]
+  
+  
 class RodentTrackClip(PipelineEnv):
 
   def __init__(
@@ -25,20 +82,7 @@ class RodentTrackClip(PipelineEnv):
       ls_iterations: int = 3,
       **kwargs,
   ):
-    mj_model = mujoco.MjModel.from_xml_path(_XML_PATH)
-    mj_model.opt.solver = {
-      'cg': mujoco.mjtSolver.mjSOL_CG,
-      'newton': mujoco.mjtSolver.mjSOL_NEWTON,
-    }[solver.lower()]
-    mj_model.opt.iterations = iterations
-    mj_model.opt.ls_iterations = ls_iterations
-    
-    # index given [dense, sparse, auto] 
-    mj_model.opt.jacobian = {
-      'dense': 0,
-      'sparse': 1,
-      'auto': 2,
-    }["dense"]
+
 
     sys = mjcf_brax.load_model(mj_model)
 
