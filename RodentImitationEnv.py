@@ -64,6 +64,7 @@ class RodentTrackClip(PipelineEnv):
       ls_iterations: int = 3,
       **kwargs,
   ):
+    
     mj_model = env_setup(params)
 
     sys = mjcf_brax.load_model(mj_model)
@@ -188,7 +189,8 @@ class RodentTrackClip(PipelineEnv):
     # I don't think the order matters as long as it's consistent?
     # return the reference traj concatenated with the state obs. reference traj goes in the encoder
     # and the rest of the obs go straight to the decoder
-  
+    ref_traj = self.full_ref_traj.qpos[i:i+5]
+    ref_traj = transform_to_relative(ref_traj)
     return jp.concatenate([
         data.qpos, 
         data.qvel, 
